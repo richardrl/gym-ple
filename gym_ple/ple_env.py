@@ -7,7 +7,7 @@ import numpy as np
 class PLEEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, game_name='FlappyBird', display_screen=True, ple_game=True):
+    def __init__(self, game_name='FlappyBird', display_screen=True, ple_game=True, reward_type='sparse'):
         # set headless mode
         os.environ['SDL_VIDEODRIVER'] = 'dummy'
         
@@ -20,7 +20,7 @@ class PLEEnv(gym.Env):
         game_module = importlib.import_module(game_module_name)
         game = getattr(game_module, game_name)()
         self.game_state = PLE(game, fps=30, display_screen=display_screen)
-        self.game_state.init()
+        self.game_state.init(reward_type)
         self._action_set = self.game_state.getActionSet()
         self.action_space = spaces.Discrete(len(self._action_set))
         self.screen_height, self.screen_width = self.game_state.getScreenDims()
