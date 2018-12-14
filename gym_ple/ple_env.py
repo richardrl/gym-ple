@@ -21,7 +21,7 @@ class PLEEnv(gym.Env):
         game = getattr(game_module, game_name)()
         self.game_state = PLE(game, fps=30, display_screen=display_screen)
         self.game_state.init()
-        self.game_state.reward_type = reward_type
+        game.reward_type = reward_type
         self._action_set = self.game_state.getActionSet()
         self.action_space = spaces.Discrete(len(self._action_set))
         self.screen_height, self.screen_width = self.game_state.getScreenDims()
