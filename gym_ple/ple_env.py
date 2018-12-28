@@ -7,7 +7,7 @@ import numpy as np
 class PLEEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, game_name='FlappyBird', display_screen=True,ple_game=True, root_game_name=None, reward_type='sparse'):
+    def __init__(self, game_name='FlappyBird', display_screen=True,ple_game=True, root_game_name=None, reward_type='sparse', obs_type=None):
         # set headless mode
         os.environ['SDL_VIDEODRIVER'] = 'dummy'
         
@@ -19,24 +19,29 @@ class PLEEnv(gym.Env):
             game_module_name = F"{root_game_name.lower()}.envs"
         game_module = importlib.import_module(game_module_name)
         game = getattr(game_module, game_name)()
-        self.game_state = PLE(game, fps=30, display_screen=display_screen)
-        self.game_state.init()
+        self.ple_wrapper = PLE(game, fps=30, display_screen=display_screen)
+        self.ple_wrapper.init()
         game.reward_type = reward_type
-        self._action_set = self.game_state.getActionSet()
+        self._action_set = self.ple_wrapper.getActionSet()
         self.action_space = spaces.Discrete(len(self._action_set))
-        self.screen_height, self.screen_width = self.game_state.getScreenDims()
+        self.screen_height, self.screen_width = self.ple_wrapper.getScreenDims()
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.screen_width, self.screen_height, 3), dtype = np.uint8)
         self.viewer = None
+        assert obs_type is not None, obs_type
+        self.obs_type = obs_type
 
 
     def _step(self, a):
-        reward = self.game_state.act(self._action_set[a])
-        state = self._get_image()
-        terminal = self.game_state.game_over()
+        reward = self.ple_wrapper.act(self._action_set[a])
+        if self.obs_type == 'state':
+            state = self.ple_wrapper.game.get_state()
+        elif self.obs_type == 'image':
+            state = self._get_image()
+        terminal = self.ple_wrapper.game_over()
         return state, reward, terminal, {}
 
     def _get_image(self):
-        image_rotated = np.fliplr(np.rot90(self.game_state.getScreenRGB(),3)) # Hack to fix the rotated image returned by ple
+        image_rotated = np.fliplr(np.rot90(self.ple_wrapper.getScreenRGB(), 3)) # Hack to fix the rotated image returned by ple
         return image_rotated
 
     @property
@@ -46,8 +51,11 @@ class PLEEnv(gym.Env):
     # return: (states, observations)
     def _reset(self):
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.screen_width, self.screen_height, 3), dtype = np.uint8)
-        self.game_state.reset_game()
-        state = self._get_image()
+        self.ple_wrapper.reset_game()
+        if self.obs_type == 'state':
+            state = self.ple_wrapper.game.get_state()
+        elif self.obs_type == 'image':
+            state = self._get_image()
         return state
 
     def _render(self, mode='human', close=False):
@@ -68,7 +76,10 @@ class PLEEnv(gym.Env):
 
     def _seed(self, seed):
         rng = np.random.RandomState(seed)
-        self.game_state.rng = rng
-        self.game_state.game.rng = self.game_state.rng
+        self.ple_wrapper.rng = rng
+        self.ple_wrapper.game.rng = self.ple_wrapper.rng
 
-        self.game_state.init()
+        self.ple_wrapper.init()
+
+    def get_keys_to_action(self):
+        return {(): 0, (32,): 1, (119,): 2, (100,): 3, (97,): 4, (115,): 5, (100, 119): 6, (97, 119): 7, (100, 115): 8, (97, 115): 9, (32, 119): 10, (32, 100): 11, (32, 97): 12, (32, 115): 13, (32, 100, 119): 14, (32, 97, 119): 15, (32, 100, 115): 16, (32, 97, 115): 17}
